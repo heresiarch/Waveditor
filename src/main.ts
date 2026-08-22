@@ -5,6 +5,7 @@ import { WaveData, validateWaveData } from './WaveData';
 import { CanvasEditor } from './CanvasEditor';
 import { compile, CompileResult } from './Compiler';
 import { applyTemplate, DEFAULT_TEMPLATE, downloadFile } from './Exporter';
+import { WavePlayer } from './WavePlayer';
 
 const btnLoad         = document.getElementById('btnLoad')         as HTMLButtonElement;
 const btnSave         = document.getElementById('btnSave')         as HTMLButtonElement;
@@ -21,6 +22,12 @@ let templateText: string = DEFAULT_TEMPLATE;
 let waveData: WaveData = WaveData.empty();
 const editor = new CanvasEditor(waveCanvas, waveData);
 
+const detailCanvas = document.getElementById('detailCanvas') as HTMLCanvasElement;
+const player = new WavePlayer(detailCanvas);
+
+// Auto-compile when a control point is changed
+editor.onChange(() => doCompile());
+
 btnLoad.addEventListener('click', () => {
   const input = document.createElement('input');
   input.type = 'file';
@@ -34,6 +41,7 @@ btnLoad.addEventListener('click', () => {
     console.log(`Loaded ${waveData.length} slots, ${waveData.activePoints().length} active points`);
     editor.setWaveData(waveData);
     editor.redraw();
+    doCompile();
   };
   input.click();
 });
@@ -49,7 +57,9 @@ btnSave.addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
-btnCompile.addEventListener('click', () => {
+btnCompile.addEventListener('click', doCompile);
+
+function doCompile(): void {
   compileResult = compile(waveData);
   const { samples, segments } = compileResult;
 
@@ -69,21 +79,35 @@ btnCompile.addEventListener('click', () => {
   }).join('');
 
   waveList.innerHTML = `<table>
+    <colgroup>
+      <col style="width: 15%">
+      <col style="width: 20%">
+      <col style="width: 20%">
+      <col style="width: 20%">
+      <col style="width: 25%">
+    </colgroup>
     <thead><tr><th>Nr.</th><th>Start</th><th>Stop</th><th>Time</th><th>Energy</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 
-  // Row click to highlight
-  waveList.querySelectorAll('tbody tr').forEach(tr => {
+  // Row click to highlight and play wave on LED
+  waveList.querySelectorAll('tbody tr').forEach((tr, idx) => {
     tr.addEventListener('click', () => {
       waveList.querySelectorAll('tbody tr').forEach(r => r.classList.remove('selected'));
       tr.classList.add('selected');
+
+      // Highlight segment in the graph
+      const seg = segments[idx];
+      editor.setHighlight(seg.startTime, seg.stopTime);
+
+      // Play the selected segment on the LED
+      const segSamples = samples.slice(seg.startIdx, seg.stopIdx);
+      player.play(segSamples);
     });
   });
 
   console.log(`[Compile] ${segments.length} segments, ${samples.length} samples`);
-  console.log('[Compile] first 5 segments:', segments.slice(0, 5));
-});
+}
 
 /** Format seconds as '0,00s' (comma decimal separator, 2 decimal places) */
 function fmt(seconds: number): string {

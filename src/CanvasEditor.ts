@@ -28,6 +28,10 @@ export class CanvasEditor {
   private dragging:     boolean = false;
   private dragIndex:    number  = -1;    // WaveData slot index
 
+  // Highlight range (seconds) for selected segment
+  private highlightStart: number = -1;
+  private highlightStop:  number = -1;
+
   private resizeObserver: ResizeObserver;
 
   constructor(canvas: HTMLCanvasElement, waveData: WaveData) {
@@ -48,9 +52,24 @@ export class CanvasEditor {
     this.redraw();
   }
 
+  // Callback when a control point is modified (drag ends)
+  private onChangeCallback: (() => void) | null = null;
+
+  /** Register a callback for when the user finishes editing a control point. */
+  onChange(cb: () => void): void {
+    this.onChangeCallback = cb;
+  }
+
   setWaveData(waveData: WaveData): void {
     this.waveData = waveData;
     this.spline   = this.buildSplineFromData(waveData);
+  }
+
+  /** Highlight a time range (seconds) in the graph. Pass -1, -1 to clear. */
+  setHighlight(startTime: number, stopTime: number): void {
+    this.highlightStart = startTime;
+    this.highlightStop  = stopTime;
+    this.redraw();
   }
 
   redraw(): void {
@@ -69,6 +88,7 @@ export class CanvasEditor {
     // Dynamically fit 10 seconds (100 tenths) into the available plot width
     this.pixelsPerTenth = plotW / (X_MAX_TIME / 0.1);
 
+    this.drawHighlight(plotW, plotH);
     this.drawGrid(plotW, plotH);
     this.drawYAxis(plotH);
     this.drawXAxis(plotW, plotH);
@@ -121,6 +141,18 @@ export class CanvasEditor {
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
+
+  private drawHighlight(plotW: number, plotH: number): void {
+    if (this.highlightStart < 0 || this.highlightStop < 0) return;
+
+    const { ctx } = this;
+    const x1 = Math.max(MARGIN_LEFT, Math.round(this.timeToX(this.highlightStart)));
+    const x2 = Math.min(MARGIN_LEFT + plotW, Math.round(this.timeToX(this.highlightStop)));
+    if (x2 <= x1) return;
+
+    ctx.fillStyle = 'rgba(180, 220, 255, 0.35)';
+    ctx.fillRect(x1, MARGIN_TOP, x2 - x1, plotH);
+  }
 
   private drawGrid(plotW: number, plotH: number): void {
     const { ctx } = this;
@@ -232,22 +264,34 @@ export class CanvasEditor {
 
   private drawControlPoints(plotW: number, plotH: number): void {
     const { ctx } = this;
-    const active = this.waveData.activePoints();
+    const maxIndex = Math.min(this.waveData.length, Math.round(X_MAX_TIME / 0.1));
 
-    for (const pt of active) {
-      const t  = pt.index * 0.1;
+    for (let i = 0; i < maxIndex; i++) {
+      const t  = i * 0.1;
       const cx = this.timeToX(t);
       if (cx < MARGIN_LEFT - CIRCLE_RADIUS || cx > MARGIN_LEFT + plotW + CIRCLE_RADIUS) continue;
 
-      const cy = this.yToCanvas(pt.y, plotH);
+      const y  = this.waveData.get(i);
+      const cy = this.yToCanvas(y, plotH);
 
       ctx.beginPath();
       ctx.arc(cx, cy, CIRCLE_RADIUS, 0, Math.PI * 2);
-      ctx.fillStyle   = '#ffff99';
-      ctx.fill();
-      ctx.strokeStyle = '#999900';
-      ctx.lineWidth   = 1.5;
-      ctx.stroke();
+
+      if (y > 0) {
+        // Active point — solid yellow
+        ctx.fillStyle   = '#ffff99';
+        ctx.fill();
+        ctx.strokeStyle = '#999900';
+        ctx.lineWidth   = 1.5;
+        ctx.stroke();
+      } else {
+        // Inactive point — subtle hollow circle
+        ctx.fillStyle   = 'rgba(200, 200, 200, 0.3)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
+        ctx.lineWidth   = 1;
+        ctx.stroke();
+      }
     }
   }
 
@@ -264,14 +308,16 @@ export class CanvasEditor {
 
   private hitTestCircle(mx: number, my: number): number {
     const plotH = this.canvas.height - MARGIN_BOTTOM - MARGIN_TOP;
-    const active = this.waveData.activePoints();
-    for (const pt of active) {
-      const cx = this.timeToX(pt.index * 0.1);
-      const cy = this.yToCanvas(pt.y, plotH);
+    const maxIndex = Math.min(this.waveData.length, Math.round(X_MAX_TIME / 0.1));
+
+    for (let i = 0; i < maxIndex; i++) {
+      const cx = this.timeToX(i * 0.1);
+      const y  = this.waveData.get(i);
+      const cy = this.yToCanvas(y, plotH);
       const dx = mx - cx;
       const dy = my - cy;
       if (dx * dx + dy * dy <= CIRCLE_RADIUS * CIRCLE_RADIUS * 2) {
-        return pt.index;
+        return i;
       }
     }
     return -1;
@@ -307,7 +353,11 @@ export class CanvasEditor {
   }
 
   private onMouseUp(_e: MouseEvent): void {
+    const wasDragging = this.dragging;
     this.dragging  = false;
     this.dragIndex = -1;
+    if (wasDragging && this.onChangeCallback) {
+      this.onChangeCallback();
+    }
   }
 }
