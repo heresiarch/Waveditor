@@ -1,0 +1,26 @@
+/*
+    created with Fireflies WaveEditor written by H. Reddmann
+    HaReddmann at t-online dot de
+*/
+
+#ifndef WAVE_H
+#define WAVE_H
+
+#include <inttypes.h>
+#include <avr/pgmspace.h>
+
+#define WAVE_COUNT  %0:d
+
+typedef struct {
+    const prog_uint8_t* start;
+    const prog_uint8_t* stop;
+    const uint16_t energy;
+} wave_data_t PROGMEM;
+
+prog_uint8_t wave[%1:d] = {%2:s
+};
+
+wave_data_t wave_data[%3:d] = {%4:s
+};
+
+#endif
