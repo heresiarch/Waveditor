@@ -56,14 +56,14 @@
       white-space: nowrap;
     }
 
-    #hiresLabel {
+    #longWaveLabel {
       color: #d4d4d4;
       font-size: 13px;
       cursor: pointer;
       user-select: none;
     }
 
-    #hiresLabel input {
+    #longWaveLabel input {
       margin-right: 4px;
       cursor: pointer;
     }
@@ -148,9 +148,10 @@
       background: #d0e4ff;
     }
 
-    /* ── Detail canvas ── */
+    /* ── Detail canvas (LED player) ── */
     #detailCanvasWrapper {
-      width: 70%;
+      width: 200px;
+      min-width: 200px;
       min-height: 0;
       background: #1a1a1a;
     }
@@ -159,6 +160,39 @@
       display: block;
       width: 100%;
       height: 100%;
+    }
+
+    /* ── Template editor ── */
+    #templateWrapper {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid #3a3a3a;
+    }
+
+    #templateWrapper label {
+      padding: 4px 8px;
+      font-size: 11px;
+      color: #888;
+      background: #252525;
+      border-bottom: 1px solid #3a3a3a;
+      flex-shrink: 0;
+    }
+
+    #templateEditor {
+      flex: 1 1 0;
+      width: 100%;
+      resize: none;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: none;
+      padding: 8px;
+      font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      overflow: auto;
+      outline: none;
     }
   </style>
 </head>
@@ -170,7 +204,7 @@
     <button id="btnImport">Import .dat</button>
     <button id="btnExport">Export .dat</button>
     <button id="btnExportH">Create Wave C Header</button>
-    <label id="hiresLabel"><input type="checkbox" id="chkHires"> Hi-Res (24×)</label>
+    <label id="longWaveLabel"><input type="checkbox" id="chkLongWave"> Long Wave (2× Duration)</label>
     <span id="infoLabel">No data loaded</span>
   </div>
 
@@ -184,6 +218,10 @@
     </div>
     <div id="detailCanvasWrapper">
       <canvas id="detailCanvas"></canvas>
+    </div>
+    <div id="templateWrapper">
+      <label>C Header Template (editable)</label>
+      <textarea id="templateEditor" spellcheck="false"></textarea>
     </div>
   </div>
 

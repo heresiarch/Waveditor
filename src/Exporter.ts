@@ -6,12 +6,7 @@ import { WaveSegment } from './Compiler';
 // Default template (content of input/wave.template)
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_TEMPLATE = `/*
-    created with Fireflies WaveEditor written by H. Reddmann
-    HaReddmann at t-online dot de
-*/
-
-#ifndef WAVE_H
+export const DEFAULT_TEMPLATE = `#ifndef WAVE_H
 #define WAVE_H
 
 #include <inttypes.h>
@@ -19,16 +14,21 @@ export const DEFAULT_TEMPLATE = `/*
 
 #define WAVE_COUNT  %0:d
 
+/*
+ * Wave descriptor stored in PROGMEM.
+ * Read as three consecutive uint16_t words by update_fireflies()
+ * using pgm_read_word_inc: wave_ptr first, then wave_end, then energy.
+ */
 typedef struct {
-    const prog_uint8_t* start;
-    const prog_uint8_t* stop;
-    const uint16_t energy;
-} wave_data_t PROGMEM;
+    const uint8_t *wave_ptr;
+    const uint8_t *wave_end;
+    uint16_t        energy;
+} wave_data_t;
 
-prog_uint8_t wave[%1:d] = {%2:s
+const uint8_t wave[%1:d] PROGMEM = {%2:s
 };
 
-wave_data_t wave_data[%3:d] = {%4:s
+const wave_data_t wave_data[%3:d] PROGMEM = {%4:s
 };
 
 #endif`;

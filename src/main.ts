@@ -3,7 +3,7 @@
 import { WaveData } from './WaveData';
 import { CanvasEditor } from './CanvasEditor';
 import { compile, CompileResult } from './Compiler';
-import { applyTemplate } from './Exporter';
+import { applyTemplate, DEFAULT_TEMPLATE } from './Exporter';
 import { WavePlayer } from './WavePlayer';
 
 const btnLoad         = document.getElementById('btnLoad')         as HTMLButtonElement;
@@ -11,7 +11,7 @@ const btnSave         = document.getElementById('btnSave')         as HTMLButton
 const btnImport       = document.getElementById('btnImport')       as HTMLButtonElement;
 const btnExport       = document.getElementById('btnExport')       as HTMLButtonElement;
 const btnExportH      = document.getElementById('btnExportH')      as HTMLButtonElement;
-const chkHires        = document.getElementById('chkHires')        as HTMLInputElement;
+const chkLongWave     = document.getElementById('chkLongWave')     as HTMLInputElement;
 const infoLabel       = document.getElementById('infoLabel')       as HTMLSpanElement;
 const waveCanvas      = document.getElementById('waveCanvas')      as HTMLCanvasElement;
 const waveList        = document.getElementById('waveList')        as HTMLDivElement;
@@ -24,14 +24,17 @@ const editor = new CanvasEditor(waveCanvas, waveData);
 const detailCanvas = document.getElementById('detailCanvas') as HTMLCanvasElement;
 const player = new WavePlayer(detailCanvas);
 
+const templateEditor = document.getElementById('templateEditor') as HTMLTextAreaElement;
+templateEditor.value = DEFAULT_TEMPLATE;
+
 // Auto-compile when a control point is changed
 editor.onChange(() => doCompile());
 
-// Re-compile when hi-res checkbox changes
-chkHires.addEventListener('change', () => doCompile());
+// Re-compile when long-wave checkbox changes
+chkLongWave.addEventListener('change', () => doCompile());
 
 function getSplineFactor(): number {
-  return chkHires.checked ? 24 : 12;
+  return chkLongWave.checked ? 24 : 12;
 }
 
 // ── Load (JSON project) ──────────────────────────────────────────────────────
@@ -107,20 +110,11 @@ btnExportH.addEventListener('click', () => {
     return;
   }
 
-  // Ask user to select a .template file first
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.template';
-  input.onchange = async () => {
-    const file = input.files?.[0];
-    if (!file) return;
-    const template = await file.text();
-    const { samples, segments } = compileResult!;
-    const output = applyTemplate(template, segments.length, samples.length, samples, segments);
-    const blob = new Blob([output], { type: 'text/plain' });
-    saveFile(blob, 'wave.h');
-  };
-  input.click();
+  const template = templateEditor.value;
+  const { samples, segments } = compileResult;
+  const output = applyTemplate(template, segments.length, samples.length, samples, segments);
+  const blob = new Blob([output], { type: 'text/plain' });
+  saveFile(blob, 'wave.h');
 });
 
 // ── Compile ──────────────────────────────────────────────────────────────────
