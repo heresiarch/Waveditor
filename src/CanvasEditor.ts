@@ -283,9 +283,9 @@ export class CanvasEditor {
       ctx.beginPath();
       ctx.arc(cx, cy, CIRCLE_RADIUS, 0, Math.PI * 2);
 
-      // Points within the active wave range (including interior zeros) are yellow.
-      // Only points beyond the last active point are shown as gray empty slots.
-      if (i <= lastActive) {
+      // Points within the active wave range (including the trailing zero) are yellow.
+      // Only points beyond lastActive+1 are shown as gray empty slots.
+      if (i <= lastActive + 1) {
         ctx.fillStyle   = '#ffff99';
         ctx.fill();
         ctx.strokeStyle = '#999900';

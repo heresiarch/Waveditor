@@ -3,7 +3,7 @@
 import { WaveData } from './WaveData';
 import { CanvasEditor } from './CanvasEditor';
 import { compile, CompileResult } from './Compiler';
-import { applyTemplate, DEFAULT_TEMPLATE } from './Exporter';
+import { applyTemplate } from './Exporter';
 import { WavePlayer } from './WavePlayer';
 
 const btnLoad         = document.getElementById('btnLoad')         as HTMLButtonElement;
@@ -11,14 +11,12 @@ const btnSave         = document.getElementById('btnSave')         as HTMLButton
 const btnImport       = document.getElementById('btnImport')       as HTMLButtonElement;
 const btnExport       = document.getElementById('btnExport')       as HTMLButtonElement;
 const btnExportH      = document.getElementById('btnExportH')      as HTMLButtonElement;
-const btnLoadTemplate = document.getElementById('btnLoadTemplate') as HTMLButtonElement;
 const chkHires        = document.getElementById('chkHires')        as HTMLInputElement;
 const infoLabel       = document.getElementById('infoLabel')       as HTMLSpanElement;
 const waveCanvas      = document.getElementById('waveCanvas')      as HTMLCanvasElement;
 const waveList        = document.getElementById('waveList')        as HTMLDivElement;
 
 let compileResult: CompileResult | null = null;
-let templateText: string = DEFAULT_TEMPLATE;
 
 let waveData: WaveData = WaveData.empty();
 const editor = new CanvasEditor(waveCanvas, waveData);
@@ -108,22 +106,19 @@ btnExportH.addEventListener('click', () => {
     alert('No compiled data available. Please edit some wave points first.');
     return;
   }
-  const { samples, segments } = compileResult;
-  const output = applyTemplate(templateText, segments.length, samples.length, samples, segments);
-  const blob = new Blob([output], { type: 'text/plain' });
-  saveFile(blob, 'wave.h');
-});
 
-// ── Load Template ────────────────────────────────────────────────────────────
-
-btnLoadTemplate.addEventListener('click', () => {
+  // Ask user to select a .template file first
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.template';
   input.onchange = async () => {
     const file = input.files?.[0];
     if (!file) return;
-    templateText = await file.text();
+    const template = await file.text();
+    const { samples, segments } = compileResult!;
+    const output = applyTemplate(template, segments.length, samples.length, samples, segments);
+    const blob = new Blob([output], { type: 'text/plain' });
+    saveFile(blob, 'wave.h');
   };
   input.click();
 });
