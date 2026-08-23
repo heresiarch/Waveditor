@@ -50,9 +50,22 @@
 
     #infoLabel {
       margin-left: auto;
-      color: #888;
+      color: #ffffff;
       font-size: 13px;
+      font-weight: 500;
       white-space: nowrap;
+    }
+
+    #hiresLabel {
+      color: #d4d4d4;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #hiresLabel input {
+      margin-right: 4px;
+      cursor: pointer;
     }
 
     /* ── Canvas ── */
@@ -154,9 +167,11 @@
   <div id="toolbar">
     <button id="btnLoad">Load</button>
     <button id="btnSave">Save</button>
-    <button id="btnCompile">Compile</button>
-    <button id="btnExport">Export</button>
+    <button id="btnImport">Import .dat</button>
+    <button id="btnExport">Export .dat</button>
+    <button id="btnExportH">Create Wave C Header</button>
     <button id="btnLoadTemplate">Load Template</button>
+    <label id="hiresLabel"><input type="checkbox" id="chkHires"> Hi-Res (24×)</label>
     <span id="infoLabel">No data loaded</span>
   </div>
 

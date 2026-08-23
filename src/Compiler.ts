@@ -24,19 +24,36 @@ export interface CompileResult {
   segments: WaveSegment[];
 }
 
-const SAMPLE_RATE    = 120; // display sample rate (Hz)
-const MAX_DURATION   = 360; // 3.0 s × 120 Hz
+const MAX_SECONDS    = 3.0;   // maximum wave segment duration
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-export function compile(waveData: WaveData): CompileResult {
+export function compile(waveData: WaveData, splineFactor: number = 12): CompileResult {
   const controlPoints = activeControlPoints(waveData);
-  const interpolated  = cubicSplineInterpolate(controlPoints);
+
+  // Always detect boundaries at the base resolution (factor 12) for consistency,
+  // then scale indices to the actual resolution.
+  const baseSamples   = cubicSplineInterpolate(controlPoints, 12);
+  const baseBounds    = detectBoundaries(Uint8Array.from(baseSamples), 12);
+  const scaleFactor   = splineFactor / 12;
+
+  const interpolated  = splineFactor === 12
+    ? baseSamples
+    : cubicSplineInterpolate(controlPoints, splineFactor);
   const samples       = Uint8Array.from(interpolated);
-  const boundaries    = detectBoundaries(samples);
-  const segments      = generateSegments(samples, boundaries);
+  const sampleRate    = splineFactor * 10;
+
+  // Scale boundary indices to actual resolution
+  const boundaries = baseBounds.map(b => Math.round(b * scaleFactor));
+  // Clamp last boundary to actual sample length
+  if (boundaries.length > 0 && boundaries[boundaries.length - 1] > samples.length) {
+    boundaries[boundaries.length - 1] = samples.length;
+  }
+
+  // Energy is always computed from base-resolution samples (resolution-independent)
+  const segments = generateSegments(samples, boundaries, sampleRate, Uint8Array.from(baseSamples), baseBounds);
   return { samples, segments };
 }
 
@@ -86,10 +103,13 @@ function activeControlPoints(waveData: WaveData): number[] {
  * Trailing zero padding (> 50 samples beyond last significant content) is
  * excluded from detection.
  */
-function detectBoundaries(samples: Uint8Array): number[] {
+function detectBoundaries(samples: Uint8Array, splineFactor: number = 12): number[] {
   const BOUNDARY_THRESHOLD  = 2;
   const RELATIVE_THRESHOLD  = 0.05;
   const MIN_PEAK_HEIGHT     = 50;
+  // Scale scan windows proportionally to the spline factor
+  const PEAK_WINDOW         = Math.round(200 * splineFactor / 12);
+  const TRAILING_THRESHOLD  = Math.round(50 * splineFactor / 12);
 
   const n = samples.length;
   if (n === 0) return [];
@@ -101,7 +121,7 @@ function detectBoundaries(samples: Uint8Array): number[] {
     while (i > 0 && samples[i] <= 1) i--;
     const lastNonzero   = i;
     const trailingZeros = n - 1 - lastNonzero;
-    if (trailingZeros > 50) endOfData = lastNonzero + 1;
+    if (trailingZeros > TRAILING_THRESHOLD) endOfData = lastNonzero + 1;
   }
 
   const bounds = new Set<number>();
@@ -128,14 +148,14 @@ function detectBoundaries(samples: Uint8Array): number[] {
     if (vi <= BOUNDARY_THRESHOLD) continue;          // handled in pass 1
     if (vi > samples[i - 1] || vi > samples[i + 1]) continue; // not a local min
 
-    // Find left and right peak within 200-sample window.
+    // Find left and right peak within scaled window.
     let leftPeak = vi;
-    for (let k = i - 1; k >= Math.max(0, i - 200); k--) {
+    for (let k = i - 1; k >= Math.max(0, i - PEAK_WINDOW); k--) {
       if (samples[k] > leftPeak) leftPeak = samples[k];
       if (samples[k] <= BOUNDARY_THRESHOLD) break;
     }
     let rightPeak = vi;
-    for (let k = i + 1; k < Math.min(endOfData, i + 200); k++) {
+    for (let k = i + 1; k < Math.min(endOfData, i + PEAK_WINDOW); k++) {
       if (samples[k] > rightPeak) rightPeak = samples[k];
       if (samples[k] <= BOUNDARY_THRESHOLD) break;
     }
@@ -159,7 +179,14 @@ function detectBoundaries(samples: Uint8Array): number[] {
  * Generate all (start, stop) wave segment pairs with duration ≤ 3.0 s.
  * Energy = round(sqrt(sum(x²))) for samples[startIdx..stopIdx).
  */
-function generateSegments(samples: Uint8Array, boundaries: number[]): WaveSegment[] {
+function generateSegments(
+  _samples: Uint8Array,
+  boundaries: number[],
+  sampleRate: number,
+  baseSamples: Uint8Array,
+  baseBoundaries: number[],
+): WaveSegment[] {
+  const maxDuration = Math.round(MAX_SECONDS * sampleRate);
   const segments: WaveSegment[] = [];
   let nr = 1;
 
@@ -167,11 +194,12 @@ function generateSegments(samples: Uint8Array, boundaries: number[]): WaveSegmen
     for (let j = i + 1; j < boundaries.length; j++) {
       const startIdx = boundaries[i];
       const stopIdx  = boundaries[j];
-      if (stopIdx - startIdx > MAX_DURATION) break;
+      if (stopIdx - startIdx > maxDuration) break;
 
-      const energy = computeEnergy(samples, startIdx, stopIdx);
-      const startTime = startIdx / SAMPLE_RATE;
-      const stopTime  = stopIdx  / SAMPLE_RATE;
+      // Energy computed from base-resolution samples for consistency
+      const energy = computeEnergy(baseSamples, baseBoundaries[i], baseBoundaries[j]);
+      const startTime = startIdx / sampleRate;
+      const stopTime  = stopIdx  / sampleRate;
 
       segments.push({
         nr: nr++,

@@ -20,9 +20,10 @@ export interface SplineEvaluator {
  * Interpolate an array of control-point Y values into a full waveform.
  *
  * @param controlPoints  Y values at evenly spaced positions (may include zeros).
- * @returns              Interpolated integer samples, length = (N-1)*12 - 1.
+ * @param splineFactor   Sub-steps per interval (default: SPLINE_FACTOR = 12).
+ * @returns              Interpolated integer samples, length = (N-1)*factor - 1.
  */
-export function cubicSplineInterpolate(controlPoints: number[]): number[] {
+export function cubicSplineInterpolate(controlPoints: number[], splineFactor: number = SPLINE_FACTOR): number[] {
   const n = controlPoints.length;
   if (n === 0) return [];
   if (n === 1) return [Math.min(MAX_OUTPUT_VALUE, controlPoints[0])];
@@ -31,8 +32,8 @@ export function cubicSplineInterpolate(controlPoints: number[]): number[] {
     const y0 = controlPoints[0];
     const y1 = controlPoints[1];
     const result: number[] = [];
-    for (let j = 1; j < SPLINE_FACTOR; j++) {
-      const t = j / SPLINE_FACTOR;
+    for (let j = 1; j < splineFactor; j++) {
+      const t = j / splineFactor;
       result.push(Math.min(MAX_OUTPUT_VALUE, Math.max(0, Math.round(y0 + (y1 - y0) * t))));
     }
     return result;
@@ -78,12 +79,12 @@ export function cubicSplineInterpolate(controlPoints: number[]): number[] {
     const a = yi  - mi  / 6;
     const b = yi1 - mi1 / 6;
 
-    // For every interval except the last: j = 1 .. SPLINE_FACTOR (inclusive).
-    // For the last interval:              j = 1 .. SPLINE_FACTOR - 1 (endpoint excluded).
-    const endJ = i < nIntervals - 1 ? SPLINE_FACTOR + 1 : SPLINE_FACTOR;
+    // For every interval except the last: j = 1 .. splineFactor (inclusive).
+    // For the last interval:              j = 1 .. splineFactor - 1 (endpoint excluded).
+    const endJ = i < nIntervals - 1 ? splineFactor + 1 : splineFactor;
 
     for (let j = 1; j < endJ; j++) {
-      const t  = j / SPLINE_FACTOR;
+      const t  = j / splineFactor;
       const t1 = 1 - t;
       const val =
         mi  * (t1 * t1 * t1) / 6 +

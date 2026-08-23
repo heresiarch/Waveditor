@@ -102,14 +102,14 @@ export class CanvasEditor {
     const active = wd.activePoints();
     if (active.length === 0) return { evaluate: () => 0 };
 
-    // Always anchor at t=0 with y=0 (wave starts at rest)
-    const knots: Knot[] = [{ x: 0, y: 0 }];
-    for (const p of active) {
-      if (p.index > 0) knots.push({ x: p.index * 0.1, y: p.y });
-    }
-    // Anchor one slot past the last active point to bring curve back to zero
     const lastIndex = active[active.length - 1].index;
-    knots.push({ x: (lastIndex + 1) * 0.1, y: 0 });
+
+    // Include ALL points from 0 to lastActive+1 (including interior zeros)
+    // so the spline faithfully follows zero-crossings.
+    const knots: Knot[] = [];
+    for (let i = 0; i <= lastIndex + 1 && i < wd.length; i++) {
+      knots.push({ x: i * 0.1, y: wd.get(i) });
+    }
 
     return buildSpline(knots);
   }
@@ -266,6 +266,12 @@ export class CanvasEditor {
     const { ctx } = this;
     const maxIndex = Math.min(this.waveData.length, Math.round(X_MAX_TIME / 0.1));
 
+    // Find the last active (non-zero) point — everything after it is "empty" space
+    let lastActive = -1;
+    for (let i = 0; i < maxIndex; i++) {
+      if (this.waveData.get(i) > 0) lastActive = i;
+    }
+
     for (let i = 0; i < maxIndex; i++) {
       const t  = i * 0.1;
       const cx = this.timeToX(t);
@@ -277,15 +283,16 @@ export class CanvasEditor {
       ctx.beginPath();
       ctx.arc(cx, cy, CIRCLE_RADIUS, 0, Math.PI * 2);
 
-      if (y > 0) {
-        // Active point — solid yellow
+      // Points within the active wave range (including interior zeros) are yellow.
+      // Only points beyond the last active point are shown as gray empty slots.
+      if (i <= lastActive) {
         ctx.fillStyle   = '#ffff99';
         ctx.fill();
         ctx.strokeStyle = '#999900';
         ctx.lineWidth   = 1.5;
         ctx.stroke();
       } else {
-        // Inactive point — subtle hollow circle
+        // Empty slot beyond the wave — subtle gray, available for extending
         ctx.fillStyle   = 'rgba(200, 200, 200, 0.3)';
         ctx.fill();
         ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
