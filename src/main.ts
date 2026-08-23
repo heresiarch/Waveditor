@@ -157,7 +157,7 @@ function doCompile(): void {
       editor.setHighlight(seg.startTime, seg.stopTime);
 
       const segSamples = samples.slice(seg.startIdx, seg.stopIdx);
-      player.play(segSamples);
+      player.play(segSamples, chkLongWave.checked);
     });
   });
 }
