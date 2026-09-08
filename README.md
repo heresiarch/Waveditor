@@ -1,6 +1,8 @@
 # WaveEditor
 
-A browser-based waveform editor for designing LED animation curves. Draw and edit spline-based waveforms on an interactive canvas, compile them into data tables, preview playback on a virtual LED strip, and export the result as a C header file for embedded firmware.
+A browser-based waveform editor for designing LED animation curves for the Fireflies Project https://www.mikrocontroller.net/topic/99803. Draw and edit spline-based waveforms on an interactive canvas, compile them into data tables, preview playback on a virtual LED strip, and export the result as a C header file for embedded firmware. The Delphi software sources by the original autor H. Reddmann are lost so I created a Typescript app.
+
+![Wave Editor](doc/wave-editor.png)
 
 ## Features
 
